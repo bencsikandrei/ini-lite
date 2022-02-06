@@ -156,4 +156,33 @@ key2=value2
   ASSERT_EQ(cat2kv->second, "value2");
 }
 
+TEST(UTestIni, multipleValuesAndCategoriesGetTrimmedRightAndLeft) {
+  std::stringstream input(R"([category1]
+key= value1 
+[ category2 ]
+key2 = value2 
+)");
+  int called = 0;
+  std::map<std::pair<std::string, std::string>, std::string> ini;
+
+  ASSERT_FALSE(af::detail::readAndParse(
+      input,
+      [&](std::string_view c, std::string_view k, std::string_view v) -> bool {
+        ++called;
+        ini.emplace(std::make_pair(std::string(c), std::string(k)), v);
+        return true;
+      }));
+  ASSERT_EQ(called, 2);
+
+  const auto cat1kv =
+      ini.find(std::make_pair(std::string("category1"), std::string("key")));
+  ASSERT_NE(cat1kv, std::end(ini));
+  ASSERT_EQ(cat1kv->second, "value1");
+
+  const auto cat2kv =
+      ini.find(std::make_pair(std::string("category2"), std::string("key2")));
+  ASSERT_NE(cat2kv, std::end(ini));
+  ASSERT_EQ(cat2kv->second, "value2");
+}
+
 } // namespace

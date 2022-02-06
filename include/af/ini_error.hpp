@@ -6,8 +6,10 @@
 namespace af {
 
 enum class ini_parse_errc {
+  // The file doesn't exist
+  invalid_file_path_non_existent = 1,
   // The file contains an un-closed section `[ ...`
-  invalid_section_unmatched_token = 1,
+  invalid_section_unmatched_token,
   // The file contains an empty section `[]`
   invalid_section_empty,
   // Empty key
@@ -26,6 +28,8 @@ public:
 
   [[nodiscard]] auto message(int error) const noexcept -> std::string override {
     switch (static_cast<ini_parse_errc>(error)) {
+    case ini_parse_errc::invalid_file_path_non_existent:
+      return "Invalid file - doesn't exist";
     case ini_parse_errc::invalid_section_unmatched_token:
       return "Invalid INI section - unmatched `[`";
     case ini_parse_errc::invalid_section_empty:

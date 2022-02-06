@@ -57,6 +57,8 @@ std::string_view ltrim(std::string_view s) noexcept {
   return s;
 }
 
+std::string_view trim(std::string_view s) noexcept { return ltrim(rtrim(s)); }
+
 constexpr bool startsWith(std::string_view v,
                           std::string_view prefix) noexcept {
   return v.substr(0, prefix.size()) == prefix;
@@ -146,7 +148,7 @@ std::error_code readAndParse(std::istream &input, ValueCallback &&cb) {
     }
 
     // we got them all, call back
-    if (!cb(std::string_view(category, categoryLen), k, v)) {
+    if (!cb(trim(std::string_view(category, categoryLen)), trim(k), trim(v))) {
       break;
     }
   }
@@ -164,10 +166,13 @@ std::error_code readAndParse(std::istream &input, ValueCallback &&cb) {
  * @return error code describind the success/failure
  */
 template <typename ValueCallback, typename std::enable_if_t<true, bool> = false>
-std::system_error readAndParse(std::filesystem::path const &path,
-                               ValueCallback &&cb) {
+std::error_code readAndParse(std::filesystem::path const &path,
+                             ValueCallback &&cb) {
   if (std::error_code ec; !std::filesystem::exists(path, ec)) {
-    return ec;
+    if (ec) {
+      return ec;
+    }
+    return make_error_code(ini_parse_errc::invalid_file_path_non_existent);
   }
 
   std::ifstream file(path);
@@ -175,7 +180,7 @@ std::system_error readAndParse(std::filesystem::path const &path,
     return std::make_error_code(std::errc::io_error);
   }
 
-  return readAndParse(file, std::forward<ValueCallback>(cb));
+  return detail::readAndParse(file, std::forward<ValueCallback>(cb));
 }
 
 } // namespace af
