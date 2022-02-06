@@ -30,7 +30,7 @@ if(AF_INI_INTEGRATION_TESTS)
 
   add_executable(af-ini-benchmark-ish integration/af-ini-benchmark-ish.cpp)
   # target_compile_options(af-ini-benchmark-ish PRIVATE 
-    # $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>
+  #   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>
   # )
   target_link_libraries(af-ini-benchmark-ish
     PRIVATE

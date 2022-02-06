@@ -7,6 +7,6 @@ Name: @LIBRARY_NAME@
 Description: Read and parse INI files.
 URL: www.@LIBRARY_NAME@.com
 Version: @PROJECT_VERSION@
-CFlags: -I${includedir}
+CFlags: -I${includedir} -std=c++17
 Libs:
 Requires:
