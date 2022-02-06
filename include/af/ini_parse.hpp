@@ -12,28 +12,32 @@
 
 #include <cassert>
 
-// temporary
-#include <iostream>
-
 namespace af {
 
 namespace detail {
 
+/**
+ * @brief Defer something till the end of a scope
+ */
 template <typename Func>
-struct ScopeGuard {
+struct [[nodiscard]] scope_guard {
 public:
-  ScopeGuard() noexcept { mAtExit(); }
+  scope_guard() noexcept { mAtExit(); }
 
   template <typename AtExit>
-  ScopeGuard(AtExit &&atexit) : mAtExit(std::forward<AtExit>(atexit)) {}
+  scope_guard(AtExit &&atexit) : mAtExit(std::forward<AtExit>(atexit)) {}
 
 private:
   Func mAtExit;
 };
 
 template <typename AtExit>
-static ScopeGuard<AtExit> makeScopeGuard(AtExit &&atexit) {
-  return ScopeGuard<AtExit>(std::forward<AtExit>(atexit));
+static scope_guard<AtExit> make_scope_guard(AtExit &&atexit) {
+  return scope_guard<AtExit>(std::forward<AtExit>(atexit));
+}
+
+[[nodiscard]] inline bool isspace(char c) noexcept {
+  return c == ' ' || c == '\t';
 }
 
 /**
@@ -41,8 +45,8 @@ static ScopeGuard<AtExit> makeScopeGuard(AtExit &&atexit) {
  */
 std::string_view rtrim(std::string_view s) {
   s.remove_suffix(std::distance(
-      s.crbegin(), std::find_if(s.crbegin(), s.crend(),
-                                [](int c) { return !std::isspace(c); })));
+      s.crbegin(),
+      std::find_if(s.crbegin(), s.crend(), [](int c) { return !isspace(c); })));
   return s;
 }
 
@@ -50,77 +54,104 @@ std::string_view rtrim(std::string_view s) {
  * @brief Strip spaces of the left of a string
  */
 std::string_view ltrim(std::string_view s) noexcept {
-  s.remove_prefix(
-      std::distance(s.cbegin(), std::find_if(s.cbegin(), s.cend(), [](int c) {
-                      return !std::isspace(c);
-                    })));
+  s.remove_prefix(std::distance(
+      s.cbegin(),
+      std::find_if(s.cbegin(), s.cend(), [](int c) { return !isspace(c); })));
   return s;
 }
 
-std::string_view trim(std::string_view s) noexcept { return ltrim(rtrim(s)); }
+/**
+ * @brief Trim on both ends
+ */
+[[nodiscard]] std::string_view trim(std::string_view s) noexcept {
+  return ltrim(rtrim(s));
+}
 
-constexpr bool startsWith(std::string_view v,
-                          std::string_view prefix) noexcept {
+/**
+ * @brief Check if a string view starts with a given prefix
+ */
+[[nodiscard]] constexpr bool starts_with(std::string_view v,
+                                         std::string_view prefix) noexcept {
   return v.substr(0, prefix.size()) == prefix;
 }
 
-constexpr bool startsWith(std::string_view v, char c) noexcept {
+/**
+ * @brief Check if a string view starts with a given char
+ */
+[[nodiscard]] constexpr bool starts_with(std::string_view v, char c) noexcept {
   return !v.empty() && v.front() == c;
 }
 
-constexpr bool startsWithUnchecked(std::string_view v, char c) noexcept {
-  assert(!v.empty() && "Don't pass empty view to startsWithUnchecked");
+/**
+ * @brief Check if a string view starts with a given char
+ * @pre the string_view mustn't be empty
+ */
+[[nodiscard]] constexpr bool starts_with_unchecked(std::string_view v,
+                                                   char c) noexcept {
+  assert(!v.empty() && "Don't pass empty view to starts_with_unchecked");
   return v.front() == c;
 }
 
-constexpr bool endsWithUnchecked(std::string_view v, char c) noexcept {
-  assert(!v.empty() && "Don't pass empty view to endsWithUnchecked");
+/**
+ * @brief Check if a string view ends with a given char
+ * @pre the string_view mustn't be empty
+ */
+[[nodiscard]] constexpr bool ends_with_unchecked(std::string_view v,
+                                                 char c) noexcept {
+  assert(!v.empty() && "Don't pass empty view to ends_with_unchecked");
   return v.back() == c;
 }
 
+/**
+ * @brief Parse data from an istream
+ * The user provided callback must return a bool indicating if parsing should
+ * continue
+ * @param input stream to parse
+ * @param cb user provided callback for (section, key, value) -> bool
+ */
 template <typename ValueCallback, typename std::enable_if_t<true, bool> = false>
-std::error_code readAndParse(std::istream &input, ValueCallback &&cb) {
+[[nodiscard]] std::error_code read_and_parse(std::istream &input,
+                                             ValueCallback &&cb) {
   static constexpr uint16_t kCategoryMaxLen = 512;
-  static constexpr uint16_t kKeyMaxLen = 256;
-  static constexpr uint16_t kValueMaxLen = 1791;
   static constexpr uint16_t kBufferMaxLen = 2048;
 
-  uint16_t categoryLen = 0;
-  char category[kCategoryMaxLen];
+  uint16_t sectionLen = 0;
+  char section[kCategoryMaxLen];
 
   for (char a[kBufferMaxLen]; input.getline(&a[0], kBufferMaxLen - 1);) {
+    std::string_view line(ltrim(std::string_view(&a[0])));
+    if (line.empty()) {
+      continue;
+    }
+
     // let's remove the cruft after the read buffer when we move to the next
     // line
-    auto _ = makeScopeGuard([&input]() {
+    auto deferClear = make_scope_guard([&input]() {
       input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     });
 
-    std::string_view line(ltrim(std::string_view(&a[0])));
-
     const auto isComment = [](std::string_view strippedLine) {
-      static constexpr std::string_view kCommentStarters = "#";
-      return startsWith(strippedLine, kCommentStarters);
+      static constexpr std::string_view kCommentHash = "#";
+      static constexpr std::string_view kCommentSemi = ";";
+      return starts_with(strippedLine, kCommentHash) ||
+             starts_with(strippedLine, kCommentSemi);
     };
 
     if (isComment(line)) {
       continue;
     }
 
-    line = rtrim(line);
-    if (line.empty()) {
-      continue;
-    }
-
     const auto isSectionStart = [](std::string_view trimmedLine) {
       static constexpr char kSectionStarter = '[';
-      return startsWithUnchecked(trimmedLine, kSectionStarter);
+      return starts_with_unchecked(trimmedLine, kSectionStarter);
     };
 
     // check if section [<section_name>]
     if (isSectionStart(line)) {
+      line = rtrim(line);
       // check if has matching ']'
       static constexpr char kSectionEnder = ']';
-      if (!endsWithUnchecked(line, kSectionEnder)) {
+      if (!ends_with_unchecked(line, kSectionEnder)) {
         return make_error_code(ini_parse_errc::invalid_section_unmatched_token);
       }
       if (line.size() < 3) {
@@ -128,8 +159,8 @@ std::error_code readAndParse(std::istream &input, ValueCallback &&cb) {
       }
       // valid section, may still be empty, keep it in the buffer
       std::copy(std::next(std::cbegin(line)), std::prev(std::cend(line)),
-                std::begin(category));
-      categoryLen = static_cast<uint16_t>(line.length() - 2);
+                std::begin(section));
+      sectionLen = static_cast<uint16_t>(line.length() - 2);
       continue;
     }
 
@@ -148,7 +179,7 @@ std::error_code readAndParse(std::istream &input, ValueCallback &&cb) {
     }
 
     // we got them all, call back
-    if (!cb(trim(std::string_view(category, categoryLen)), trim(k), trim(v))) {
+    if (!cb(trim(std::string_view(section, sectionLen)), trim(k), trim(v))) {
       break;
     }
   }
@@ -166,8 +197,8 @@ std::error_code readAndParse(std::istream &input, ValueCallback &&cb) {
  * @return error code describind the success/failure
  */
 template <typename ValueCallback, typename std::enable_if_t<true, bool> = false>
-std::error_code readAndParse(std::filesystem::path const &path,
-                             ValueCallback &&cb) {
+[[nodiscard]] std::error_code read_and_parse(std::filesystem::path const &path,
+                                             ValueCallback &&cb) {
   if (std::error_code ec; !std::filesystem::exists(path, ec)) {
     if (ec) {
       return ec;
@@ -175,12 +206,11 @@ std::error_code readAndParse(std::filesystem::path const &path,
     return make_error_code(ini_parse_errc::invalid_file_path_non_existent);
   }
 
-  std::ifstream file(path);
-  if (!file.good()) {
+  if (std::ifstream file(path); !file.good()) {
     return std::make_error_code(std::errc::io_error);
+  } else {
+    return detail::read_and_parse(file, std::forward<ValueCallback>(cb));
   }
-
-  return detail::readAndParse(file, std::forward<ValueCallback>(cb));
 }
 
 } // namespace af

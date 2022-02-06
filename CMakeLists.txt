@@ -8,8 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_BINARY_DIR})
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_BINARY_DIR})
 
-# Toggle integration tests
-option(AF_INI_UNIT_TESTS "Build integration tests" OFF)
+# Toggle integration/unit tests
+option(AF_INI_UNIT_TESTS "Build unit tests" OFF)
+option(AF_INI_INTEGRATION_TESTS "Build integration tests" OFF)
 
 set(LIBRARY_NAME ${PROJECT_NAME})
 add_library(${LIBRARY_NAME} INTERFACE)
