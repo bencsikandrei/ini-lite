@@ -20,7 +20,7 @@ g =1
 h =1)");
   int count = 0;
   for (auto _ : state) {
-    af::detail::read_and_parse(
+    (void)af::detail::read_and_parse(
         ini,
         [&count](std::string_view, std::string_view, std::string_view) -> bool {
           ++count;

@@ -3,6 +3,7 @@
 #include "ini_error.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -36,14 +37,14 @@ static scope_guard<AtExit> make_scope_guard(AtExit &&atexit) {
   return scope_guard<AtExit>(std::forward<AtExit>(atexit));
 }
 
-[[nodiscard]] inline bool isspace(char c) noexcept {
+[[nodiscard]] constexpr bool isspace(char c) noexcept {
   return c == ' ' || c == '\t';
 }
 
 /**
  * @brief Strip spaces of the right of a string
  */
-std::string_view rtrim(std::string_view s) {
+/* constexpr */ std::string_view rtrim(std::string_view s) {
   s.remove_suffix(std::distance(
       s.crbegin(),
       std::find_if(s.crbegin(), s.crend(), [](int c) { return !isspace(c); })));
@@ -53,7 +54,7 @@ std::string_view rtrim(std::string_view s) {
 /**
  * @brief Strip spaces of the left of a string
  */
-std::string_view ltrim(std::string_view s) noexcept {
+/* constexpr */ std::string_view ltrim(std::string_view s) noexcept {
   s.remove_prefix(std::distance(
       s.cbegin(),
       std::find_if(s.cbegin(), s.cend(), [](int c) { return !isspace(c); })));
@@ -112,36 +113,37 @@ std::string_view ltrim(std::string_view s) noexcept {
 template <typename ValueCallback, typename std::enable_if_t<true, bool> = false>
 [[nodiscard]] std::error_code read_and_parse(std::istream &input,
                                              ValueCallback &&cb) {
-  static constexpr uint16_t kCategoryMaxLen = 512;
-  static constexpr uint16_t kBufferMaxLen = 2048;
+  static constexpr uint16_t kCategoryMaxLen = 256;
+  static constexpr uint16_t kBufferMaxLen = 1024;
 
   uint16_t sectionLen = 0;
   char section[kCategoryMaxLen];
 
   for (char a[kBufferMaxLen]; input.getline(&a[0], kBufferMaxLen - 1);) {
-    std::string_view line(ltrim(std::string_view(&a[0])));
+    std::string_view line(&a[0]);
     if (line.empty()) {
       continue;
     }
 
     // let's remove the cruft after the read buffer when we move to the next
     // line
-    auto deferClear = make_scope_guard([&input]() {
+    const auto deferClear = make_scope_guard([&input]() {
       input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     });
 
-    const auto isComment = [](std::string_view strippedLine) {
+    static constexpr auto isComment = [](std::string_view strippedLine) {
       static constexpr std::string_view kCommentHash = "#";
       static constexpr std::string_view kCommentSemi = ";";
       return starts_with(strippedLine, kCommentHash) ||
              starts_with(strippedLine, kCommentSemi);
     };
 
+    line = ltrim(line);
     if (isComment(line)) {
       continue;
     }
 
-    const auto isSectionStart = [](std::string_view trimmedLine) {
+    static constexpr auto isSectionStart = [](std::string_view trimmedLine) {
       static constexpr char kSectionStarter = '[';
       return starts_with_unchecked(trimmedLine, kSectionStarter);
     };
@@ -158,32 +160,25 @@ template <typename ValueCallback, typename std::enable_if_t<true, bool> = false>
         return make_error_code(ini_parse_errc::invalid_section_empty);
       }
       // valid section, may still be empty, keep it in the buffer
-      std::copy(std::next(std::cbegin(line)), std::prev(std::cend(line)),
-                std::begin(section));
+      std::memcpy(&section[0], line.data() + 1, line.size() - 2);
       sectionLen = static_cast<uint16_t>(line.length() - 2);
       continue;
     }
-
     // we can now check for key / value pairs with '=' in between
     const auto posOfEqual = line.find_first_of('=');
-    std::string_view k = line.substr(0, posOfEqual);
-    // we have a key, but do we have a value?
+    const std::string_view k = line.substr(0, posOfEqual);
     if (k.empty()) {
       return make_error_code(ini_parse_errc::invalid_key_empty);
     }
-
-    // key is not empty, how about value?
-    std::string_view v = line.substr(k.length() + 1);
+    const std::string_view v = line.substr(k.length() + 1);
     if (v.empty()) {
       return make_error_code(ini_parse_errc::invalid_value_empty);
     }
-
     // we got them all, call back
-    if (!cb(trim(std::string_view(section, sectionLen)), trim(k), trim(v))) {
+    if (!cb(trim(std::string_view(section, sectionLen)), rtrim(k), trim(v))) {
       break;
     }
   }
-
   return {};
 }
 
