@@ -11,6 +11,7 @@ list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_BINARY_DIR})
 # Toggle integration/unit tests
 option(AF_INI_UNIT_TESTS "Build unit tests" OFF)
 option(AF_INI_INTEGRATION_TESTS "Build integration tests" OFF)
+option(AF_INI_BENCHMARKS "Build benchmarks" OFF)
 
 set(LIBRARY_NAME ${PROJECT_NAME})
 add_library(${LIBRARY_NAME} INTERFACE)
@@ -22,9 +23,14 @@ target_include_directories(${LIBRARY_NAME} INTERFACE
 target_compile_features(${LIBRARY_NAME} INTERFACE "cxx_std_17")
 
 # Tests
-if(AF_INI_UNIT_TESTS)
+if(AF_INI_UNIT_TESTS OR AF_INI_INTEGRATION_TESTS)
     include(CTest)
     add_subdirectory(test)
+endif()
+
+# Benchmarks
+if(AF_INI_BENCHMARKS)
+    add_subdirectory(benchmark)
 endif()
 
 # Configure installation files
