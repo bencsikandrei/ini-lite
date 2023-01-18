@@ -1,0 +1,9 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/conan",
+    "files.associations": {
+        "system_error": "cpp",
+        "cstdint": "cpp",
+        "*.tcc": "cpp",
+        "fstream": "cpp"
+    }
+}

@@ -26,10 +26,11 @@ if(AF_INI_INTEGRATION_TESTS)
       af-ini::af-ini
       af-ini-test-interface
   )
+  target_compile_options(af-ini-integration-tests PRIVATE "-march=haswell")
   add_test(NAME af-ini-integration-tests COMMAND af-ini-integration-tests ${CMAKE_CURRENT_LIST_DIR}/data/valid1.ini)
 
   add_executable(af-ini-benchmark-ish integration/af-ini-benchmark-ish.cpp)
-  # target_compile_options(af-ini-benchmark-ish PRIVATE 
+  # target_compile_options(af-ini-benchmark-ish PRIVATE
   #   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>
   # )
   target_link_libraries(af-ini-benchmark-ish
@@ -38,4 +39,6 @@ if(AF_INI_INTEGRATION_TESTS)
       af-ini-test-interface
   )
   add_test(NAME af-ini-benchmark-ish COMMAND af-ini-benchmark-ish ${CMAKE_CURRENT_LIST_DIR}/data/valid1.ini)
+  target_compile_options(af-ini-benchmark-ish PRIVATE "-march=haswell")
+
 endif()

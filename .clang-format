@@ -1,2 +1,17 @@
-BasedOnStyle: LLVM
-AlwaysBreakTemplateDeclarations: true
+# requires clang-format 11
+Language:      Cpp
+BasedOnStyle:  Mozilla
+SortIncludes:  CaseInsensitive
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  AfterCaseLabel:  true
+  AfterClass:      true
+  AfterNamespace:  true
+  AfterExternBlock: true

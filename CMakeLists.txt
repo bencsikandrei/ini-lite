@@ -60,7 +60,7 @@ configure_file(${${LIBRARY_NAME}_CMAKE_DIR}/${LIBRARY_NAME}.pc.in
 
 # Imstall actual files
 install(
-    DIRECTORY 
+    DIRECTORY
         include/${LIBRARY_NAME}
         ${${LIBRARY_NAME}_GENERATED_PATH}/include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -81,7 +81,7 @@ install(
 )
 
 install(
-    FILES 
+    FILES
         ${${LIBRARY_NAME}_GENERATED_PATH}/${LIBRARY_NAME}.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/
 )
