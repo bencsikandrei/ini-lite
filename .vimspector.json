@@ -1,0 +1,13 @@
+{
+  "configurations": {
+    "CodeLLDB": {
+      "adapter": "CodeLLDB",
+      "configuration": {
+        "request": "launch",
+        "expressions": "native",
+        "program": "${workspaceRoot}/build/ini",
+        "args": [ "*${args}" ]
+      }
+    }
+  }
+}
